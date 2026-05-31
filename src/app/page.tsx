@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Avatar, Button, ConfigProvider, Form, Input, Modal, Spin, Typography } from "antd";
-import { LogOut, MessageCircle, Plus, Send, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, LogOut, MessageCircle, Plus, Send, ShieldCheck, UserRound } from "lucide-react";
 import { io, type Socket } from "socket.io-client";
 import type { ConversationSummary, Message, SessionUser } from "@/lib/types";
+import Image from "next/image";
+import Logo from "@/assets/logo.jpg";
 
 type LoginValues = {
   username: string;
@@ -66,18 +68,18 @@ function LoginView({ onLogin }: { onLogin: (user: SessionUser) => void }) {
     <main className="login-screen">
       <section className="login-panel">
         <div className="login-header">
-          <Avatar size={44} icon={<MessageCircle size={22} />} style={{ background: "#1677ff", marginBottom: 14 }} />
-          <h1 className="login-title">Chat</h1>
+          <Image alt="Logo" width={92} height={92} src={Logo} className="login-logo" priority />
+          <div className="login-title">XIN MỜI PHẢN ÁNH Ý KIẾN</div>
         </div>
         <Form<LoginValues> layout="vertical" onFinish={handleSubmit} requiredMark={false}>
-          <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true, message: "Nhập tên đăng nhập." }]}>
-            <Input size="large" autoComplete="username" />
+          <Form.Item required name="username" label="Tên đăng nhập" rules={[{ required: true, message: "Nhập tên đăng nhập." }]}>
+            <Input size="large" autoComplete="username" placeholder="Nhập tên đăng nhập" />
           </Form.Item>
-          <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: "Nhập mật khẩu." }]}>
-            <Input.Password size="large" autoComplete="current-password" />
+          <Form.Item required name="password" label="Mật khẩu" rules={[{ required: true, message: "Nhập mật khẩu." }]}>
+            <Input.Password size="large" autoComplete="current-password" placeholder="Nhập mật khẩu" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" size="large" block loading={loading}>
-            Đăng nhập
+          <Button className="login-submit" type="primary" htmlType="submit" size="large" block loading={loading}>
+            VÀO PHÒNG CHAT
           </Button>
         </Form>
       </section>
@@ -150,6 +152,7 @@ function ChatApp({ initialUser }: { initialUser: SessionUser }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [adminMobileChatOpen, setAdminMobileChatOpen] = useState(initialUser.role !== "admin");
   const [socket, setSocket] = useState<Socket | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const selectedAccountIdRef = useRef(selectedAccountId);
@@ -281,80 +284,84 @@ function ChatApp({ initialUser }: { initialUser: SessionUser }) {
   };
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="brand-row">
-            <div>
-              <h1 className="brand-title">Chat</h1>
-              <p className="brand-subtitle">
-                {user.role === "admin" ? "Admin" : `${user.displayName}`}
-              </p>
+    <main
+      className={`app-shell ${user.role === "admin" ? "admin-shell" : "user-shell"} ${adminMobileChatOpen ? "mobile-chat-open" : "mobile-list-open"
+        }`}
+    >
+      {user.role === "admin" ? (
+        <aside className="sidebar">
+          <div className="sidebar-header">
+            <div className="brand-row">
+              <div>
+                <h1 className="brand-title">Chat</h1>
+                <p className="brand-subtitle">
+                  {user.role === "admin" ? "Admin" : `${user.displayName}`}
+                </p>
+              </div>
+              <Button aria-label="Logout" icon={<LogOut size={17} />} onClick={handleLogout} />
             </div>
-            <Button aria-label="Logout" icon={<LogOut size={17} />} onClick={handleLogout} />
-          </div>
-          {user.role === "admin" ? (
-            <Button
-              type="primary"
-              onClick={() => setAccountModalOpen(true)}
-              style={{ marginTop: 16 }}
-              block
-            >
-              <Plus size={17} />
-              Thêm tài khoản
-            </Button>
-          ) : null}
-        </div>
-
-        <div className="account-list">
-          {loading ? (
-            <div className="empty-state">
-              <Spin />
-            </div>
-          ) : conversations.length === 0 ? (
-            <div className="empty-state">No conversations yet.</div>
-          ) : (
-            conversations.map((conversation) => (
-              <button
-                className={`account-item ${selectedAccountId === conversation.account.id ? "active" : ""}`}
-                key={conversation.account.id}
-                onClick={() => setSelectedAccountId(conversation.account.id)}
+            {user.role === "admin" ? (
+              <Button
+                type="primary"
+                onClick={() => setAccountModalOpen(true)}
+                style={{ marginTop: 16 }}
+                block
               >
-                <Avatar icon={<UserRound size={18} />} style={{ background: "#dce9ff", color: "#0f5fcf" }} />
-                <span className="account-meta">
-                  <span className="account-name">{user.role === "admin" ? conversation.account.displayName : "Admin"}</span>
-                  <span className="account-last">
-                    {conversation.lastMessage?.content ?? (user.role === "admin" ? conversation.account.username : "Chat with admin")}
+                <Plus size={17} />
+                Thêm tài khoản
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="account-list">
+            {loading ? (
+              <div className="empty-state">
+                <Spin />
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="empty-state">No conversations yet.</div>
+            ) : (
+              conversations.map((conversation) => (
+                <button
+                  className={`account-item ${selectedAccountId === conversation.account.id ? "active" : ""}`}
+                  key={conversation.account.id}
+                  onClick={() => {
+                    setSelectedAccountId(conversation.account.id);
+                    setAdminMobileChatOpen(true);
+                  }}
+                >
+                  <Avatar icon={<UserRound size={18} />} style={{ background: "#dce9ff", color: "#0f5fcf" }} />
+                  <span className="account-meta">
+                    <span className="account-name">{user.role === "admin" ? conversation.account.displayName : "Admin"}</span>
                   </span>
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      </aside>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+      ) : null}
 
       <section className="chat-pane">
         {selectedConversation ? (
           <>
-            <header className="chat-header">
-              <div className="user-row">
-                <Avatar size={42} icon={<UserRound size={20} />} style={{ background: "#1677ff" }} />
-                <div>
-                  <Typography.Title level={4} style={{ margin: 0 }}>
-                    {chatDisplayName}
-                  </Typography.Title>
-                  <span className={`presence ${chatOnline ? "online" : "offline"}`}>
-                    {chatOnline ? "Đang hoạt động" : "Offline"}
-                  </span>
+            {user.role === "admin" ? (
+              <div className="mobile-chat-nav">
+                <Button
+                  aria-label="Back to user list"
+                  icon={<ArrowLeft size={16} style={{ marginTop: 2 }} />}
+                  onClick={() => setAdminMobileChatOpen(false)}
+                />
+                <div className="mobile-chat-title">
+                  <span>Ẩn danh</span>
+                  <strong>{selectedConversation.account.displayName}</strong>
                 </div>
               </div>
-              {user.role === "admin" ? <ShieldCheck size={22} color="#1677ff" /> : <MessageCircle size={22} color="#1677ff" />}
-            </header>
+            ) : null}
 
             <div className="messages">
               <div className="message-stack">
                 {messages.length === 0 ? (
-                  <div className="empty-state">Start the conversation.</div>
+                  <div className="empty-state"></div>
                 ) : (
                   messages.map((item) => {
                     const mine = item.senderRole === user.role;
@@ -377,7 +384,7 @@ function ChatApp({ initialUser }: { initialUser: SessionUser }) {
                 className="composer-input"
                 size="large"
                 value={draft}
-                placeholder="Aa"
+                placeholder="Nhập tin nhắn..."
                 onChange={(event) => setDraft(event.target.value)}
                 onPressEnter={handleSend}
               />
@@ -391,9 +398,10 @@ function ChatApp({ initialUser }: { initialUser: SessionUser }) {
                 <Send size={18} />
               </Button>
             </div>
+
           </>
         ) : (
-          <div className="empty-state">Create an account to open the first chat.</div>
+          <div className="empty-state">Tạo tài khoản để bắt đầu chat</div>
         )}
       </section>
 

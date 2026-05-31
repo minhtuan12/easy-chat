@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import { addMessage, getAccountById, getAdminUser, listConversations, listMessages } from "@/lib/db";
 import { cookieName, parseSessionToken } from "@/lib/auth";
 import type { Message, SessionUser } from "@/lib/types";
+import { notifyAdminOfUserMessage } from "@/lib/mail";
 
 type SocketServer = HttpServer & {
   io?: IOServer<ClientToServerEvents, ServerToClientEvents>;
@@ -226,6 +227,12 @@ function registerHandlers(io: IOServer<ClientToServerEvents, ServerToClientEvent
       ack({ ok: true, data: message });
       io.to(`conversation:${accountId}`).emit("messages:new", message);
       await emitConversationUpdates(io, accountId);
+
+      if (user.role === "user") {
+        notifyAdminOfUserMessage(user, content).catch((error) => {
+          console.error("Unable to send admin email notification", error);
+        });
+      }
     } catch (error) {
       ack({ ok: false, error: error instanceof Error ? error.message : "Unable to send message." });
     }

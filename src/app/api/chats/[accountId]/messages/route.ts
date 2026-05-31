@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { addMessage, getAccountById, listMessages } from "@/lib/db";
 import { jsonError, requireUser } from "@/lib/http";
+import { notifyAdminOfUserMessage } from "@/lib/mail";
 
 export const runtime = "nodejs";
 
@@ -67,6 +68,12 @@ export async function POST(request: Request, { params }: Params) {
       senderId: access.user.id,
       content
     });
+
+    if (access.user.role === "user") {
+      notifyAdminOfUserMessage(access.user, content).catch((error) => {
+        console.error("Unable to send admin email notification", error);
+      });
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
